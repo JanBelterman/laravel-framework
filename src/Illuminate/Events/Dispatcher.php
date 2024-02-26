@@ -647,7 +647,7 @@ class Dispatcher implements DispatcherContract
         $listener = (new ReflectionClass($class))->newInstanceWithoutConstructor();
 
         return [$listener, $this->propagateListenerOptions(
-            $listener, new CallQueuedListener($class, $method, $arguments)
+            $listener, new CallQueuedListener($class, $method, $arguments), $arguments
         )];
     }
 
@@ -658,9 +658,9 @@ class Dispatcher implements DispatcherContract
      * @param  \Illuminate\Events\CallQueuedListener  $job
      * @return mixed
      */
-    protected function propagateListenerOptions($listener, $job)
+    protected function propagateListenerOptions($listener, $job, $arguments)
     {
-        return tap($job, function ($job) use ($listener) {
+        return tap($job, function ($job) use ($listener, $arguments) {
             $data = array_values($job->data);
 
             if ($listener instanceof ShouldQueueAfterCommit) {
@@ -669,16 +669,30 @@ class Dispatcher implements DispatcherContract
                 $job->afterCommit = property_exists($listener, 'afterCommit') ? $listener->afterCommit : null;
             }
 
-            $job->backoff = method_exists($listener, 'backoff') ? $listener->backoff(...$data) : ($listener->backoff ?? null);
+            $job->backoff = method_exists($listener, 'backoff')
+                ? $listener->backoff(...$data)
+                : ($listener->backoff ?? null);
+            
             $job->maxExceptions = $listener->maxExceptions ?? null;
-            $job->queue = method_exists($listener, 'viaQueue') ? $listener->viaQueue() : ($listener->queue ?? null);
-            $job->retryUntil = method_exists($listener, 'retryUntil') ? $listener->retryUntil(...$data) : null;
+            
+            $job->queue = method_exists($listener, 'viaQueue') && isset($arguments[0])
+                ? $listener->viaQueue($arguments[0])
+                : ($listener->queue ?? null);
+            
+            $job->retryUntil = method_exists($listener, 'retryUntil')
+                ? $listener->retryUntil(...$data)
+                : null;
+            
             $job->shouldBeEncrypted = $listener instanceof ShouldBeEncrypted;
+            
             $job->timeout = $listener->timeout ?? null;
+            
             $job->tries = $listener->tries ?? null;
 
             $job->through(array_merge(
-                method_exists($listener, 'middleware') ? $listener->middleware(...$data) : [],
+                method_exists($listener, 'middleware')
+                    ? $listener->middleware(...$data)
+                    : [],
                 $listener->middleware ?? []
             ));
         });

@@ -12,6 +12,8 @@ class SupportNumberTest extends TestCase
         $this->needsIntlExtension();
 
         $this->assertSame('0', Number::format(0));
+        $this->assertSame('0', Number::format(0.0));
+        $this->assertSame('0', Number::format(0.00));
         $this->assertSame('1', Number::format(1));
         $this->assertSame('10', Number::format(10));
         $this->assertSame('25', Number::format(25));
@@ -73,6 +75,22 @@ class SupportNumberTest extends TestCase
         $this->needsIntlExtension();
 
         $this->assertSame('trois', Number::spell(3, 'fr'));
+    }
+
+    public function testSpelloutWithThreshold()
+    {
+        $this->needsIntlExtension();
+
+        $this->assertSame('9', Number::spell(9, after: 10));
+        $this->assertSame('10', Number::spell(10, after: 10));
+        $this->assertSame('eleven', Number::spell(11, after: 10));
+
+        $this->assertSame('nine', Number::spell(9, until: 10));
+        $this->assertSame('10', Number::spell(10, until: 10));
+        $this->assertSame('11', Number::spell(11, until: 10));
+
+        $this->assertSame('ten thousand', Number::spell(10000, until: 50000));
+        $this->assertSame('100,000', Number::spell(100000, until: 50000));
     }
 
     public function testOrdinal()
@@ -155,6 +173,15 @@ class SupportNumberTest extends TestCase
         $this->assertSame('1,024 YB', Number::fileSize(1024 ** 9));
     }
 
+    public function testClamp()
+    {
+        $this->assertSame(2, Number::clamp(1, 2, 3));
+        $this->assertSame(3, Number::clamp(5, 2, 3));
+        $this->assertSame(5, Number::clamp(5, 1, 10));
+        $this->assertSame(4.5, Number::clamp(4.5, 1, 10));
+        $this->assertSame(1, Number::clamp(-10, 1, 5));
+    }
+
     public function testToHuman()
     {
         $this->assertSame('1', Number::forHumans(1));
@@ -193,6 +220,9 @@ class SupportNumberTest extends TestCase
         $this->assertSame('1 thousand quadrillion quadrillion', Number::forHumans(1000000000000000000000000000000000));
 
         $this->assertSame('0', Number::forHumans(0));
+        $this->assertSame('0', Number::forHumans(0.0));
+        $this->assertSame('0.00', Number::forHumans(0, 2));
+        $this->assertSame('0.00', Number::forHumans(0.0, 2));
         $this->assertSame('-1', Number::forHumans(-1));
         $this->assertSame('-1.00', Number::forHumans(-1, precision: 2));
         $this->assertSame('-10', Number::forHumans(-10));
@@ -206,6 +236,62 @@ class SupportNumberTest extends TestCase
         $this->assertSame('-1.1 trillion', Number::forHumans(-1100000000000, maxPrecision: 1));
         $this->assertSame('-1 quadrillion', Number::forHumans(-1000000000000000));
         $this->assertSame('-1 thousand quadrillion', Number::forHumans(-1000000000000000000));
+    }
+
+    public function testSummarize()
+    {
+        $this->assertSame('1', Number::abbreviate(1));
+        $this->assertSame('1.00', Number::abbreviate(1, precision: 2));
+        $this->assertSame('10', Number::abbreviate(10));
+        $this->assertSame('100', Number::abbreviate(100));
+        $this->assertSame('1K', Number::abbreviate(1000));
+        $this->assertSame('1.00K', Number::abbreviate(1000, precision: 2));
+        $this->assertSame('1K', Number::abbreviate(1000, maxPrecision: 2));
+        $this->assertSame('1K', Number::abbreviate(1230));
+        $this->assertSame('1.2K', Number::abbreviate(1230, maxPrecision: 1));
+        $this->assertSame('1M', Number::abbreviate(1000000));
+        $this->assertSame('1B', Number::abbreviate(1000000000));
+        $this->assertSame('1T', Number::abbreviate(1000000000000));
+        $this->assertSame('1Q', Number::abbreviate(1000000000000000));
+        $this->assertSame('1KQ', Number::abbreviate(1000000000000000000));
+
+        $this->assertSame('123', Number::abbreviate(123));
+        $this->assertSame('1K', Number::abbreviate(1234));
+        $this->assertSame('1.23K', Number::abbreviate(1234, precision: 2));
+        $this->assertSame('12K', Number::abbreviate(12345));
+        $this->assertSame('1M', Number::abbreviate(1234567));
+        $this->assertSame('1B', Number::abbreviate(1234567890));
+        $this->assertSame('1T', Number::abbreviate(1234567890123));
+        $this->assertSame('1.23T', Number::abbreviate(1234567890123, precision: 2));
+        $this->assertSame('1Q', Number::abbreviate(1234567890123456));
+        $this->assertSame('1.23KQ', Number::abbreviate(1234567890123456789, precision: 2));
+        $this->assertSame('490K', Number::abbreviate(489939));
+        $this->assertSame('489.9390K', Number::abbreviate(489939, precision: 4));
+        $this->assertSame('500.00000M', Number::abbreviate(500000000, precision: 5));
+
+        $this->assertSame('1MQ', Number::abbreviate(1000000000000000000000));
+        $this->assertSame('1BQ', Number::abbreviate(1000000000000000000000000));
+        $this->assertSame('1TQ', Number::abbreviate(1000000000000000000000000000));
+        $this->assertSame('1QQ', Number::abbreviate(1000000000000000000000000000000));
+        $this->assertSame('1KQQ', Number::abbreviate(1000000000000000000000000000000000));
+
+        $this->assertSame('0', Number::abbreviate(0));
+        $this->assertSame('0', Number::abbreviate(0.0));
+        $this->assertSame('0.00', Number::abbreviate(0, 2));
+        $this->assertSame('0.00', Number::abbreviate(0.0, 2));
+        $this->assertSame('-1', Number::abbreviate(-1));
+        $this->assertSame('-1.00', Number::abbreviate(-1, precision: 2));
+        $this->assertSame('-10', Number::abbreviate(-10));
+        $this->assertSame('-100', Number::abbreviate(-100));
+        $this->assertSame('-1K', Number::abbreviate(-1000));
+        $this->assertSame('-1.23K', Number::abbreviate(-1234, precision: 2));
+        $this->assertSame('-1.2K', Number::abbreviate(-1234, maxPrecision: 1));
+        $this->assertSame('-1M', Number::abbreviate(-1000000));
+        $this->assertSame('-1B', Number::abbreviate(-1000000000));
+        $this->assertSame('-1T', Number::abbreviate(-1000000000000));
+        $this->assertSame('-1.1T', Number::abbreviate(-1100000000000, maxPrecision: 1));
+        $this->assertSame('-1Q', Number::abbreviate(-1000000000000000));
+        $this->assertSame('-1KQ', Number::abbreviate(-1000000000000000000));
     }
 
     protected function needsIntlExtension()
